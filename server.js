@@ -7,10 +7,10 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
-import { TextLoader } from "langchain/document_loaders/fs/text";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
+import { Document } from "@langchain/core/documents";
 import { PromptTemplate } from "@langchain/core/prompts";
 
 dotenv.config();
@@ -41,12 +41,14 @@ let vectorStore = null;
 // Configure embedding and chat model
 const getEmbeddings = () => {
   return new GoogleGenerativeAIEmbeddings({
+    apiKey: process.env.GOOGLE_API_KEY,
     modelName: "text-embedding-004",
   });
 };
 
 const getChatModel = () => {
   return new ChatGoogleGenerativeAI({
+    apiKey: process.env.GOOGLE_API_KEY,
     modelName: "gemini-1.5-pro",
     temperature: 0,
   });
@@ -63,17 +65,21 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
     console.log(`Processing file: ${req.file.originalname} (${fileExtension})`);
 
     // 1. Ingestion: Load PDF or Text
-    let loader;
+    let docs = [];
     if (fileExtension === ".pdf") {
-      loader = new PDFLoader(filePath);
+      const loader = new PDFLoader(filePath);
+      docs = await loader.load();
     } else if (fileExtension === ".txt") {
-      loader = new TextLoader(filePath);
+      // Manual text loading to avoid package export issues
+      const text = fs.readFileSync(filePath, "utf-8");
+      docs = [new Document({ 
+        pageContent: text, 
+        metadata: { source: req.file.originalname } 
+      })];
     } else {
       fs.unlinkSync(filePath);
       return res.status(400).json({ error: "Unsupported file type. Please upload PDF or TXT." });
     }
-
-    const docs = await loader.load();
 
     // 2. Chunking: Split text into manageable pieces
     const splitter = new RecursiveCharacterTextSplitter({
@@ -87,7 +93,9 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
     vectorStore = await MemoryVectorStore.fromDocuments(splitDocs, getEmbeddings());
 
     // Clean up uploaded file
-    fs.unlinkSync(filePath);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
 
     res.json({ message: "Document processed and indexed successfully!", chunks: splitDocs.length });
   } catch (error) {
