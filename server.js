@@ -42,14 +42,14 @@ let vectorStore = null;
 const getEmbeddings = () => {
   return new GoogleGenerativeAIEmbeddings({
     apiKey: process.env.GOOGLE_API_KEY,
-    modelName: "text-embedding-004",
+    modelName: "gemini-embedding-2",
   });
 };
 
 const getChatModel = () => {
   return new ChatGoogleGenerativeAI({
     apiKey: process.env.GOOGLE_API_KEY,
-    modelName: "gemini-1.5-pro",
+    modelName: "gemini-2.5-flash-lite",
     temperature: 0,
   });
 };
