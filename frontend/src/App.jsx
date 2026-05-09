@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { 
   UploadCloud, 
   FileText, 
@@ -204,7 +206,13 @@ function App() {
                     {msg.role === 'user' ? <User size={20} color="white" /> : <Bot size={20} color="var(--accent-primary)" />}
                   </div>
                   <div className="message-content">
-                    {msg.content}
+                    {msg.role === 'ai' ? (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {msg.content}
+                      </ReactMarkdown>
+                    ) : (
+                      msg.content
+                    )}
                   </div>
                 </motion.div>
               ))}
